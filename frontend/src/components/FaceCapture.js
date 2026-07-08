@@ -27,6 +27,8 @@ const FaceCapture = () => {
     const [challengeStatus, setChallengeStatus] = useState(null); // 'waiting', 'processing', 'success', 'failed'
 
     const googleBtnRef = useRef(null);
+    const [gsiReady, setGsiReady] = useState(false);
+    const [authError, setAuthError] = useState(null);
 
     // Restore an existing session from localStorage on mount.
     useEffect(() => {
@@ -36,7 +38,20 @@ const FaceCapture = () => {
         }
     }, []);
 
+    // The Google Identity Services script loads async, so wait until it's ready
+    // before trying to render the button (otherwise the button never appears).
+    useEffect(() => {
+        if (window.google?.accounts?.id) { setGsiReady(true); return; }
+        const t = setInterval(() => {
+            if (window.google?.accounts?.id) { setGsiReady(true); clearInterval(t); }
+        }, 150);
+        // Give up after ~8s so we can surface a clear error instead of hanging.
+        const timeout = setTimeout(() => clearInterval(t), 8000);
+        return () => { clearInterval(t); clearTimeout(timeout); };
+    }, []);
+
     const handleCredential = useCallback(async (response) => {
+        setAuthError(null);
         try {
             const { data } = await axios.post(`${API_URL}/auth/google`, {
                 credential: response.credential
@@ -45,23 +60,27 @@ const FaceCapture = () => {
             localStorage.setItem(USER_KEY, JSON.stringify(data.user));
             setUser(data.user);
         } catch (error) {
-            alert('Login failed: ' + (error.response?.data?.error || error.message));
+            setAuthError(error.response?.data?.error || error.message || 'No se pudo iniciar sesión');
         }
     }, []);
 
-    // Render the Google Identity Services button when logged out.
+    // Render the Google Identity Services button once the script is ready.
     useEffect(() => {
-        if (user || !window.google || !GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
-        window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleCredential
-        });
-        window.google.accounts.id.renderButton(googleBtnRef.current, {
-            theme: 'filled_blue',
-            size: 'large',
-            text: 'signin_with'
-        });
-    }, [user, handleCredential]);
+        if (user || !gsiReady || !GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
+        try {
+            window.google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleCredential
+            });
+            window.google.accounts.id.renderButton(googleBtnRef.current, {
+                theme: 'filled_blue',
+                size: 'large',
+                text: 'signin_with'
+            });
+        } catch (e) {
+            setAuthError('No se pudo inicializar Google Sign-In: ' + e.message);
+        }
+    }, [user, gsiReady, handleCredential]);
 
     const logout = () => {
         localStorage.removeItem(TOKEN_KEY);
@@ -259,7 +278,18 @@ const FaceCapture = () => {
             <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>
                 <h1>Facial Validation App</h1>
                 <p>Sign in with an authorized Google account to continue.</p>
-                <div ref={googleBtnRef} style={{ display: 'inline-block', marginTop: '20px' }} />
+                <div ref={googleBtnRef} style={{ display: 'inline-block', marginTop: '20px', minHeight: '44px' }} />
+                {!GOOGLE_CLIENT_ID && (
+                    <p style={{ color: '#c0392b', marginTop: '16px' }}>
+                        Configuración faltante: <code>REACT_APP_GOOGLE_CLIENT_ID</code> no está definido en el build del frontend.
+                    </p>
+                )}
+                {GOOGLE_CLIENT_ID && !gsiReady && (
+                    <p style={{ color: '#888', marginTop: '16px' }}>Cargando Google Sign-In…</p>
+                )}
+                {authError && (
+                    <p style={{ color: '#c0392b', marginTop: '16px' }}>{authError}</p>
+                )}
             </div>
         );
     }
