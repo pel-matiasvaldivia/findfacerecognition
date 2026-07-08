@@ -1,13 +1,12 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
-import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const TOKEN_KEY = 'ff_token';
+const USER_KEY = 'ff_user';
 
 const CHALLENGES = [
     { id: 'smile', label: '😊 Please SMILE!', instruction: 'Show a happy expression' },
@@ -17,7 +16,6 @@ const CHALLENGES = [
 
 const FaceCapture = () => {
     const webcamRef = useRef(null);
-    const [imgSrc, setImgSrc] = useState(null);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [user, setUser] = useState(null);
@@ -28,37 +26,58 @@ const FaceCapture = () => {
     const [challengeStep, setChallengeStep] = useState(0); // 0 = Idle, 1 = Smile, 2 = Left, 3 = Right, 4 = Final
     const [challengeStatus, setChallengeStatus] = useState(null); // 'waiting', 'processing', 'success', 'failed'
 
+    const googleBtnRef = useRef(null);
+
+    // Restore an existing session from localStorage on mount.
     useEffect(() => {
-        const getSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setUser(session?.user ?? null);
-
-            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-                setUser(session?.user ?? null);
-            });
-
-            return () => subscription.unsubscribe();
-        };
-        getSession();
+        const stored = localStorage.getItem(USER_KEY);
+        if (localStorage.getItem(TOKEN_KEY) && stored) {
+            try { setUser(JSON.parse(stored)); } catch { /* ignore */ }
+        }
     }, []);
 
-    const login = async () => {
-        await supabase.auth.signInWithOAuth({ provider: 'google' });
-    };
+    const handleCredential = useCallback(async (response) => {
+        try {
+            const { data } = await axios.post(`${API_URL}/auth/google`, {
+                credential: response.credential
+            });
+            localStorage.setItem(TOKEN_KEY, data.token);
+            localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+            setUser(data.user);
+        } catch (error) {
+            alert('Login failed: ' + (error.response?.data?.error || error.message));
+        }
+    }, []);
 
-    const logout = async () => {
-        await supabase.auth.signOut();
+    // Render the Google Identity Services button when logged out.
+    useEffect(() => {
+        if (user || !window.google || !GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
+        window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleCredential
+        });
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+            theme: 'filled_blue',
+            size: 'large',
+            text: 'signin_with'
+        });
+    }, [user, handleCredential]);
+
+    const logout = () => {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        if (window.google) window.google.accounts.id.disableAutoSelect();
+        setUser(null);
     };
 
     const capture = useCallback(() => {
         return webcamRef.current.getScreenshot();
     }, [webcamRef]);
 
-    // Build an axios config carrying the current Supabase access token so the
-    // backend (which now requires authentication) accepts the request.
-    const authConfig = async (extra = {}) => {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
+    // Build an axios config carrying the backend session token so the API
+    // (which requires authentication) accepts the request.
+    const authConfig = (extra = {}) => {
+        const token = localStorage.getItem(TOKEN_KEY);
         return {
             ...extra,
             headers: {
@@ -145,6 +164,8 @@ const FaceCapture = () => {
                     const yawValueRight = headposeYaw.name || 0;
                     passed = Math.abs(yawValueRight) > 15;
                     break;
+                default:
+                    passed = false;
             }
 
             if (passed) {
@@ -200,7 +221,6 @@ const FaceCapture = () => {
     };
 
     const retake = () => {
-        setImgSrc(null);
         setResult(null);
         setEnrollName('');
         setChallengeStep(0);
@@ -238,7 +258,8 @@ const FaceCapture = () => {
         return (
             <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>
                 <h1>Facial Validation App</h1>
-                <button onClick={login} style={{ padding: '10px 20px', fontSize: '1.2em' }}>Login with Google</button>
+                <p>Sign in with an authorized Google account to continue.</p>
+                <div ref={googleBtnRef} style={{ display: 'inline-block', marginTop: '20px' }} />
             </div>
         );
     }

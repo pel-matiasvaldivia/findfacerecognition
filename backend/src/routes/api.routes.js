@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const axios = require('axios');
-const { uploadFile } = require('../services/storage.service');
+const { uploadFile, readStoredFile } = require('../services/storage.service');
 const { logAccess } = require('../services/db.service');
 const { detectFaces, searchFaces, verifyFaces, createFace } = require('../services/ntech.service');
 const mqttService = require('../services/mqtt.service');
@@ -10,7 +10,7 @@ const requireAuth = require('../middleware/auth');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// All API routes require an authenticated Supabase session (Bearer token).
+// All API routes require a valid backend session (Bearer token).
 router.use(requireAuth);
 
 // ... (existing code)
@@ -153,12 +153,17 @@ router.post('/enroll', async (req, res) => {
 
         let imageBuffer;
         if (imageUrl) {
-            try {
-                const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-                imageBuffer = imageResponse.data;
-            } catch (imgError) {
-                console.warn('Failed to download enrollment image:', imgError.message);
-                // We proceed without imageBuffer, but ntech service will warn/fail attachment
+            // Photos are stored locally, so read from disk first. Fall back to an
+            // HTTP fetch only for external URLs.
+            imageBuffer = await readStoredFile(imageUrl);
+            if (!imageBuffer) {
+                try {
+                    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+                    imageBuffer = Buffer.from(imageResponse.data);
+                } catch (imgError) {
+                    console.warn('Failed to load enrollment image:', imgError.message);
+                    // We proceed without imageBuffer, but ntech service will warn/fail attachment
+                }
             }
         }
 

@@ -11,11 +11,9 @@ COPY . .
 # Create React App inlines REACT_APP_* variables at BUILD time. They must be
 # present here (not at container runtime) or the bundle ships with empty config.
 # Values are provided as build args from CI (see .github/workflows/docker-build.yml).
-ARG REACT_APP_SUPABASE_URL
-ARG REACT_APP_SUPABASE_ANON_KEY
+ARG REACT_APP_GOOGLE_CLIENT_ID
 ARG REACT_APP_API_URL=https://back.faceid.alertasenlinea.com.ar/api
-ENV REACT_APP_SUPABASE_URL=$REACT_APP_SUPABASE_URL
-ENV REACT_APP_SUPABASE_ANON_KEY=$REACT_APP_SUPABASE_ANON_KEY
+ENV REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 RUN npm run build

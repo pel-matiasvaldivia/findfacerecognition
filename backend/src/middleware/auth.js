@@ -1,29 +1,22 @@
-const { createClient } = require('@supabase/supabase-js');
+const jwt = require('jsonwebtoken');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-// Supabase client used only to validate the caller's access token.
-const supabase = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false
-    }
-});
+const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
- * Express middleware that requires a valid Supabase access token.
- *
- * The frontend obtains this token from its Supabase (Google OAuth) session
- * and must send it as `Authorization: Bearer <token>`. Without this, the
- * sensitive endpoints (enroll, door/open, search) were reachable by anyone
- * who could hit the backend port.
+ * Express middleware that requires a valid session token issued by this backend
+ * (see auth.service.js). The token is a signed JWT; the frontend obtains it from
+ * POST /api/auth/google and sends it as `Authorization: Bearer <token>`.
  *
  * Set AUTH_DISABLED=true to bypass verification (local development only).
  */
-const requireAuth = async (req, res, next) => {
+const requireAuth = (req, res, next) => {
     if (process.env.AUTH_DISABLED === 'true') {
         return next();
+    }
+
+    if (!JWT_SECRET) {
+        console.error('JWT_SECRET is not set; rejecting all authenticated requests.');
+        return res.status(500).json({ error: 'Server auth misconfigured' });
     }
 
     const header = req.headers.authorization || '';
@@ -34,15 +27,10 @@ const requireAuth = async (req, res, next) => {
     }
 
     try {
-        const { data, error } = await supabase.auth.getUser(token);
-        if (error || !data?.user) {
-            return res.status(401).json({ error: 'Invalid or expired session' });
-        }
-        req.user = data.user;
+        req.user = jwt.verify(token, JWT_SECRET);
         return next();
     } catch (err) {
-        console.error('Auth middleware error:', err.message);
-        return res.status(401).json({ error: 'Authentication failed' });
+        return res.status(401).json({ error: 'Invalid or expired session' });
     }
 };
 

@@ -3,7 +3,6 @@
     "version": "0.1.0",
     "private": true,
     "dependencies": {
-        "@supabase/supabase-js": "^2.33.1",
         "@tensorflow/tfjs": "^4.10.0",
         "@tensorflow-models/blazeface": "^0.0.7",
         "@testing-library/jest-dom": "^5.17.0",
