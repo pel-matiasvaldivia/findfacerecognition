@@ -4,15 +4,24 @@ const mqtt = require('mqtt');
 // Or 'localhost' if running outside docker but mapped ports?
 // Inside docker network, host is 'mqtt'.
 const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL || 'mqtt://mqtt:1883';
+const MQTT_USERNAME = process.env.MQTT_USERNAME;
+const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 const DOOR_TOPIC = 'access/door';
 
 let client = null;
 
 const connect = () => {
     console.log(`Connecting to MQTT Broker at ${MQTT_BROKER_URL}...`);
+
+    if (!MQTT_USERNAME || !MQTT_PASSWORD) {
+        console.warn('MQTT_USERNAME/MQTT_PASSWORD not set. The broker now requires authentication; the connection will fail until credentials are provided.');
+    }
+
     client = mqtt.connect(MQTT_BROKER_URL, {
         reconnectPeriod: 5000, // Reconnect every 5 seconds
-        clientId: 'backend-service-' + Math.random().toString(16).substr(2, 8)
+        clientId: 'backend-service-' + Math.random().toString(16).substr(2, 8),
+        username: MQTT_USERNAME,
+        password: MQTT_PASSWORD
     });
 
     client.on('connect', () => {

@@ -13,10 +13,20 @@ Cada vez que hagas push a cualquier branch, GitHub Actions automáticamente:
    - Nombre del branch
    - SHA del commit
 
+Nota: en **pull requests** las imágenes se construyen para validar los Dockerfiles,
+pero **no se publican**; el push a GHCR ocurre solo en pushes de rama / ejecución manual.
+
 ### Imágenes Publicadas
 Las imágenes se publican en:
-- **Frontend**: `ghcr.io/alertasenlinea/facerecognition-frontend:latest`
-- **Backend**: `ghcr.io/alertasenlinea/facerecognition-backend:latest`
+- **Frontend**: `ghcr.io/pel-matiasvaldivia/findfacerecognition-frontend:latest`
+- **Backend**: `ghcr.io/pel-matiasvaldivia/findfacerecognition-backend:latest`
+
+### Configuración del build del frontend (Repository Variables)
+Create React App inyecta las variables `REACT_APP_*` **en tiempo de build**, así que el
+workflow las pasa como *build args* tomados de **Settings → Secrets and variables →
+Actions → Variables**:
+- `REACT_APP_GOOGLE_CLIENT_ID` — Client ID de Google (público).
+- `REACT_APP_API_URL` — opcional (default `https://back.faceid.alertasenlinea.com.ar/api`).
 
 ## 📦 Uso
 
@@ -68,12 +78,18 @@ docker-compose up -d
 Asegúrate de tener un archivo `.env` con:
 
 ```env
-SUPABASE_URL=tu_supabase_url
-SUPABASE_ANON_KEY=tu_supabase_anon_key
-SUPABASE_SERVICE_KEY=tu_supabase_service_key
+GOOGLE_CLIENT_ID=tu_google_client_id
+JWT_SECRET=tu_jwt_secret
+ALLOWED_EMAILS=email1@dominio.com,email2@dominio.com
+POSTGRES_PASSWORD=tu_password_postgres
+PUBLIC_BASE_URL=https://back.faceid.alertasenlinea.com.ar
 NTECH_API_URL=tu_ntech_api_url
 NTECH_API_KEY=tu_ntech_api_key
+MQTT_USERNAME=backend
+MQTT_PASSWORD=tu_password_mqtt
 ```
+
+Ver `env.example` para la lista completa.
 
 ## 📝 Notas
 

@@ -3,14 +3,13 @@ version: '3.8'
 services:
   # Frontend React
   frontend:
-    image: ghcr.io/alertasenlinea/facerecognition-frontend:latest
+    image: ghcr.io/pel-matiasvaldivia/findfacerecognition-frontend:latest
     pull_policy: always
     ports:
       - "3300:80"
-    environment:
-      - REACT_APP_API_URL=http://localhost:4000
-      - REACT_APP_SUPABASE_URL=${SUPABASE_URL}
-      - REACT_APP_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+    # NOTE: The React frontend is a static build served by nginx. REACT_APP_*
+    # values are baked into the bundle at BUILD time (see frontend/Dockerfile
+    # and the CI build-args), so setting them here at runtime has no effect.
     depends_on:
       - backend
     networks:
@@ -18,19 +17,43 @@ services:
 
   # Backend Node.js
   backend:
-    image: ghcr.io/alertasenlinea/facerecognition-backend:latest
+    image: ghcr.io/pel-matiasvaldivia/findfacerecognition-backend:latest
     pull_policy: always
     ports:
       - "4000:4000"
     environment:
       - NODE_ENV=production
       - PORT=4000
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL}
       - NTECH_API_URL=${NTECH_API_URL}
       - NTECH_API_KEY=${NTECH_API_KEY}
+      - DATABASE_URL=postgres://${POSTGRES_USER:-faceid}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-faceid}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - JWT_SECRET=${JWT_SECRET}
+      - ALLOWED_EMAILS=${ALLOWED_EMAILS}
+      - ALLOWED_DOMAINS=${ALLOWED_DOMAINS}
+      - MQTT_BROKER_URL=mqtt://mqtt:1883
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+    depends_on:
+      - mqtt
+      - postgres
     volumes:
       - ./backend/uploads:/app/uploads
+    networks:
+      - app-network
+
+  # PostgreSQL (access logs) — replaces Supabase Postgres
+  postgres:
+    image: postgres:16-alpine
+    container_name: faceid-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-faceid}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-faceid}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     networks:
       - app-network
 
@@ -39,6 +62,15 @@ services:
     image: eclipse-mosquitto:2.0
     container_name: mosquitto
     restart: unless-stopped
+    # Provision the password file from env credentials, then start the broker.
+    # This keeps the broker authenticated without committing a password hash.
+    command: >
+      sh -c "mosquitto_passwd -c -b /mosquitto/config/passwd \"$$MQTT_USERNAME\" \"$$MQTT_PASSWORD\"
+      && chmod 0600 /mosquitto/config/passwd
+      && exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf"
+    environment:
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
     ports:
       - "1883:1883"
       - "9001:9001"
@@ -48,6 +80,9 @@ services:
       - ./mosquitto/log:/mosquitto/log
     networks:
       - app-network
+
+volumes:
+  pgdata:
 
 networks:
   app-network:

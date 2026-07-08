@@ -1,151 +1,72 @@
-# 🚀 Inicio Rápido - Validación Facial NTechLab
+# 🚀 Inicio Rápido — FindFace Recognition
 
-## 📦 Archivos Incluidos
+Aplicación de control de acceso facial sobre **NTechLab FindFace Multi**, con
+autenticación, base de datos y almacenamiento **dentro del stack** (sin Supabase).
 
-Has recibido una aplicación web completa con:
+Para la documentación completa, ver [`README.md`](README.md).
 
-✅ **Frontend React** - Captura facial con validaciones tipo banco
-✅ **Backend Node.js** - API REST con integración NTechLab
-✅ **MinIO** - Almacenamiento S3-compatible (incluido, gratis)
-✅ **Docker Compose** - Deploy simplificado
-✅ **Autenticación Google** - Via Supabase
+## 📦 Servicios (docker-compose)
 
-## 🎯 Próximos Pasos
+| Servicio | Rol |
+|---|---|
+| **frontend** (React + Nginx) | Captura facial + retos de liveness + login con Google |
+| **backend** (Node + Express) | Orquesta NTech, auth (JWT propio), Postgres, storage local y MQTT |
+| **postgres** | Tabla `access_logs` |
+| **mqtt** (Mosquitto) | Comando de apertura de puerta (`access/door`) |
 
-### 1. **Lee el SETUP_CHECKLIST.md** ⭐ IMPORTANTE
-Este archivo contiene una lista paso a paso de TODO lo que necesitas configurar.
+## ✅ Requisitos previos
 
-### 2. **Configura las Cuentas Necesarias**
-- **Supabase** (autenticación): https://supabase.com - GRATIS
-- **MinIO** (almacenamiento): Ya incluido en Docker - GRATIS
-- **NTechLab** (validación facial): Contacta con ellos directamente
+1. **NTechLab FindFace Multi** — instancia y API key.
+2. **Google OAuth Client ID** (Google Cloud Console, tipo *Web application*), con el
+   origen del frontend en *Authorized JavaScript origins*
+   (ej. `https://app.faceid.alertasenlinea.com.ar`).
+3. **Docker + Docker Compose**.
 
-### 3. **Configura las Variables de Entorno**
-Copia `.env.example` a `.env` y completa:
-- Credenciales de Supabase (obligatorio)
-- Credenciales de NTechLab (obligatorio)
-- MinIO ya viene preconfigurado con valores por defecto ✅
+## 🛠️ Configuración
 
-### 4. **Inicia la Aplicación**
+Copiá `env.example` a `.env` y completá los valores (auth, Postgres, NTech, MQTT):
+
 ```bash
-chmod +x start.sh
-./start.sh
+cp env.example .env
+# editá .env: GOOGLE_CLIENT_ID, JWT_SECRET, ALLOWED_EMAILS,
+#             POSTGRES_PASSWORD, PUBLIC_BASE_URL, NTECH_*, MQTT_*
 ```
 
-O manualmente:
+Para builds locales del frontend, copiá también `frontend/.env.example` a `frontend/.env`
+y completá `REACT_APP_GOOGLE_CLIENT_ID` y `REACT_APP_API_URL`.
+
+## ▶️ Iniciar
+
 ```bash
-docker-compose up --build
+docker-compose up -d
+docker-compose logs -f
 ```
 
-### 5. **Accede a la App**
-- Frontend: http://localhost:3000
+- Frontend: http://localhost:3300
 - Backend: http://localhost:4000
-- MinIO Console: http://localhost:9001 (admin/minio123456)
+- Health: http://localhost:4000/health
 
-## 📚 Documentación Importante
+La tabla `access_logs` se crea sola al arrancar el backend. Las fotos se guardan en
+`./backend/uploads` y se sirven en `${PUBLIC_BASE_URL}/uploads/...`.
 
-| Archivo | Descripción |
-|---------|-------------|
-| `SETUP_CHECKLIST.md` | ⭐ **EMPIEZA AQUÍ** - Checklist completo de configuración |
-| `README.md` | Documentación completa de la aplicación |
-| `MINIO_GUIDE.md` | Guía completa de MinIO (almacenamiento) |
-| `NTECH_SETUP.md` | Configuración específica de NTechLab API |
+## 🔑 Credenciales necesarias
 
-## ⚠️ IMPORTANTE sobre NTechLab
+1. **Google Cloud** → Client ID (`GOOGLE_CLIENT_ID` / `REACT_APP_GOOGLE_CLIENT_ID`).
+2. **JWT** → `JWT_SECRET` (string random largo) para firmar las sesiones.
+3. **Allowlist** → `ALLOWED_EMAILS` (y/o `ALLOWED_DOMAINS`) con quién puede entrar.
+4. **Postgres** → `POSTGRES_PASSWORD`.
+5. **NTechLab** → `NTECH_API_URL`, `NTECH_API_KEY`.
+6. **MQTT** → `MQTT_USERNAME`, `MQTT_PASSWORD`.
 
-La documentación de su API no estaba accesible públicamente. El código incluye:
+## 🆘 Ayuda
 
-1. **Endpoints estándar** de APIs de reconocimiento facial
-2. **Estructura flexible** fácil de adaptar
-3. **Guía detallada** en `NTECH_SETUP.md` para adaptarlo
+- Logs: `docker-compose logs -f`
+- Diagnóstico: `GET /health/diagnostics`
+- Problemas comunes: [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+- Integración NTechLab: [`NTECH_SETUP.md`](NTECH_SETUP.md) · [`NTLAB_API_GUIDE.md`](NTLAB_API_GUIDE.md)
 
-**Debes**:
-- Obtener la documentación oficial de NTechLab
-- Verificar los endpoints reales
-- Adaptar `backend/src/services/ntech.service.js` según sea necesario
+## ⚠️ Sobre NTechLab
 
-## 🏗️ Estructura del Proyecto
-
-```
-facial-validation-app/
-├── frontend/           # Aplicación React
-│   ├── src/
-│   │   ├── components/    # Componente de captura facial
-│   │   ├── services/      # Servicios de API y Supabase
-│   │   └── App.js         # Aplicación principal
-│   ├── Dockerfile
-│   └── package.json
-│
-├── backend/            # API Node.js
-│   ├── src/
-│   │   ├── routes/        # Rutas de la API
-│   │   ├── controllers/   # Controladores
-│   │   ├── services/      # Servicios (S3, NTechLab)
-│   │   └── middleware/    # Auth, errores
-│   ├── Dockerfile
-│   └── package.json
-│
-├── docker-compose.yml  # Orquestación de servicios
-├── .env.example        # Plantilla de variables
-└── start.sh           # Script de inicio rápido
-```
-
-## 🔑 Credenciales Necesarias
-
-Necesitarás obtener:
-
-1. **Supabase** (gratis para empezar)
-   - SUPABASE_URL
-   - SUPABASE_ANON_KEY
-   - SUPABASE_SERVICE_KEY
-
-2. **Google Cloud** (para OAuth)
-   - Client ID
-   - Client Secret
-
-3. **MinIO** (ya incluido, usa valores por defecto)
-   - MINIO_ROOT_USER: `admin` (por defecto)
-   - MINIO_ROOT_PASSWORD: `minio123456` (por defecto)
-   - MINIO_BUCKET_NAME: `facial-validation-photos` (por defecto)
-   - ⚠️ **Cambiar en producción por credenciales seguras**
-
-4. **NTechLab**
-   - API URL
-   - API Key
-
-## ✨ Características Principales
-
-### Frontend
-- Captura facial en tiempo real
-- Detección de rostro con TensorFlow.js
-- Validaciones automáticas (centrado, tamaño, iluminación)
-- Cuenta regresiva automática antes de captura
-- UI responsive y profesional
-
-### Backend
-- Autenticación JWT con Supabase
-- Upload optimizado de imágenes a MinIO
-- Integración completa con NTechLab
-- Rate limiting y seguridad
-- Manejo robusto de errores
-
-### MinIO
-- Almacenamiento local S3-compatible
-- Sin costos de cloud
-- Consola web de administración
-- 100% compatible con AWS S3
-- Fácil migración a AWS S3 si es necesario
-
-## 🆘 ¿Necesitas Ayuda?
-
-1. **Revisa SETUP_CHECKLIST.md** - Cubre el 90% de problemas comunes
-2. **Revisa README.md** - Documentación técnica completa
-3. **Revisa logs**: `docker-compose logs -f`
-
-## 🎉 ¡Listo!
-
-Una vez configurado todo, tendrás una aplicación profesional de validación facial completamente funcional.
-
-**Tiempo estimado de configuración**: 1-2 horas (la mayoría es crear las cuentas)
-
-**Siguiente paso**: Abre `SETUP_CHECKLIST.md` y sigue los pasos. ✅
+La documentación de su API no está accesible públicamente. La integración está en
+`backend/src/services/ntech.service.js` y puede requerir ajustes según tu versión de
+FindFace Multi. Ver `NTECH_SETUP.md`.

@@ -231,7 +231,7 @@ console.log('Coincidencias encontradas:', result.totalMatches);
 
 ## 🔐 Seguridad
 
-- ✅ Las imágenes se suben a Supabase Storage
+- ✅ Las imágenes se guardan en el filesystem del backend y se sirven en `/uploads`
 - ✅ El API Key nunca se expone al frontend
 - ✅ Todas las peticiones a NTLAB se hacen desde el backend
 - ✅ Se usa autenticación por Token

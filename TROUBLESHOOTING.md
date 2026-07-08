@@ -53,9 +53,11 @@ app.use(cors(corsOptions));
 
 ```env
 REACT_APP_API_URL=https://back.faceid.alertasenlinea.com.ar/api
-REACT_APP_SUPABASE_URL=https://qsqmsmipauameidxflbs.supabase.co
-REACT_APP_SUPABASE_ANON_KEY=...
+REACT_APP_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
 ```
+
+> Recordá: `REACT_APP_*` se inyecta en tiempo de build (CRA). En la imagen Docker
+> se pasa como *build arg* desde las Repository Variables de GitHub Actions, no en runtime.
 
 ---
 

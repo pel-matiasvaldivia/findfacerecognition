@@ -1,47 +1,56 @@
-const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+// Local filesystem storage. Files are written to UPLOADS_DIR and served
+// statically by the backend at /uploads (see index.js). This replaces the
+// previous Supabase Storage bucket so the app has no external dependency.
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '../../uploads');
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error('Supabase credentials missing:', {
-        url: !!supabaseUrl,
-        key: !!supabaseKey
-    });
-}
+// Public base URL where /uploads is reachable, e.g. https://back.faceid.alertasenlinea.com.ar
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 4000}`).replace(/\/$/, '');
 
-const supabase = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false
-    }
-});
+// Ensure the uploads directory exists at startup.
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-const BUCKET_NAME = 'facial-validation-photos';
+const safeName = (originalname = 'upload.jpg') => {
+    const ext = path.extname(originalname).toLowerCase() || '.jpg';
+    return `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+};
 
+/**
+ * Persist an uploaded file (multer memory storage) to local disk.
+ * @param {Object} file - multer file object with .buffer and .originalname
+ * @returns {Promise<string>} Public URL of the stored file
+ */
 const uploadFile = async (file) => {
-    const fileName = `${Date.now()}-${file.originalname}`;
-    const { data, error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(fileName, file.buffer, {
-            contentType: file.mimetype,
-            upsert: false
-        });
+    const fileName = safeName(file.originalname);
+    const destPath = path.join(UPLOADS_DIR, fileName);
+    await fs.promises.writeFile(destPath, file.buffer);
+    return `${PUBLIC_BASE_URL}/uploads/${fileName}`;
+};
 
-    if (error) {
-        console.error('Supabase Upload Error:', error);
-        throw error;
+/**
+ * Read a previously stored file back into a Buffer, given the URL returned by
+ * uploadFile (or a bare filename). Returns null if it is not a local file.
+ * @param {string} imageUrl
+ * @returns {Promise<Buffer|null>}
+ */
+const readStoredFile = async (imageUrl) => {
+    if (!imageUrl) return null;
+    const fileName = path.basename(imageUrl.split('?')[0]);
+    // Guard against path traversal.
+    if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) return null;
+    const filePath = path.join(UPLOADS_DIR, fileName);
+    try {
+        return await fs.promises.readFile(filePath);
+    } catch (e) {
+        return null;
     }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(fileName);
-
-    return publicUrl;
 };
 
 module.exports = {
-    uploadFile
+    uploadFile,
+    readStoredFile,
+    UPLOADS_DIR
 };
