@@ -197,7 +197,7 @@ curl -X POST "http://localhost:4000/api/search?limit=10&threshold=0.7" \
 
 ```json
 {
-  "imageUrl": "https://supabase.../photo.jpg",
+  "imageUrl": "https://back.faceid.alertasenlinea.com.ar/uploads/photo.jpg",
   "detectedFace": {
     "id": "cf0mbqev54rqhngnq940",
     "bbox": { "left": 451, "top": 235, "right": 645, "bottom": 502 },
@@ -274,8 +274,8 @@ curl -X POST http://localhost:4000/api/verify \
 
 ```json
 {
-  "image1Url": "https://supabase.../documento.jpg",
-  "image2Url": "https://supabase.../selfie.jpg",
+  "image1Url": "https://back.faceid.alertasenlinea.com.ar/uploads/documento.jpg",
+  "image2Url": "https://back.faceid.alertasenlinea.com.ar/uploads/selfie.jpg",
   "face1": {
     "id": "cf0mbqev54rqhngnq940",
     "detection_score": 0.95
