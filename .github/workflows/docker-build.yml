@@ -78,6 +78,13 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
+          # CRA inlines these at build time. Set them as repository Variables
+          # (Settings > Secrets and variables > Actions > Variables). They are
+          # public (shipped to the browser), so Variables are fine.
+          build-args: |
+            REACT_APP_SUPABASE_URL=${{ vars.REACT_APP_SUPABASE_URL }}
+            REACT_APP_SUPABASE_ANON_KEY=${{ vars.REACT_APP_SUPABASE_ANON_KEY }}
+            REACT_APP_API_URL=${{ vars.REACT_APP_API_URL || 'https://back.faceid.alertasenlinea.com.ar/api' }}
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
