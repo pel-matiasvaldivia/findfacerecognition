@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Frontend React
   frontend:
-    image: ghcr.io/alertasenlinea/facerecognition-frontend:latest
+    image: ghcr.io/pel-matiasvaldivia/findfacerecognition-frontend:latest
     pull_policy: always
     ports:
       - "3300:80"
@@ -18,7 +18,7 @@ services:
 
   # Backend Node.js
   backend:
-    image: ghcr.io/alertasenlinea/facerecognition-backend:latest
+    image: ghcr.io/pel-matiasvaldivia/findfacerecognition-backend:latest
     pull_policy: always
     ports:
       - "4000:4000"
@@ -29,6 +29,11 @@ services:
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
       - NTECH_API_URL=${NTECH_API_URL}
       - NTECH_API_KEY=${NTECH_API_KEY}
+      - MQTT_BROKER_URL=mqtt://mqtt:1883
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+    depends_on:
+      - mqtt
     volumes:
       - ./backend/uploads:/app/uploads
     networks:
@@ -39,6 +44,15 @@ services:
     image: eclipse-mosquitto:2.0
     container_name: mosquitto
     restart: unless-stopped
+    # Provision the password file from env credentials, then start the broker.
+    # This keeps the broker authenticated without committing a password hash.
+    command: >
+      sh -c "mosquitto_passwd -c -b /mosquitto/config/passwd \"$$MQTT_USERNAME\" \"$$MQTT_PASSWORD\"
+      && chmod 0600 /mosquitto/config/passwd
+      && exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf"
+    environment:
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
     ports:
       - "1883:1883"
       - "9001:9001"

@@ -54,6 +54,20 @@ const FaceCapture = () => {
         return webcamRef.current.getScreenshot();
     }, [webcamRef]);
 
+    // Build an axios config carrying the current Supabase access token so the
+    // backend (which now requires authentication) accepts the request.
+    const authConfig = async (extra = {}) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        return {
+            ...extra,
+            headers: {
+                ...(extra.headers || {}),
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            }
+        };
+    };
+
     const startProcess = () => {
         setResult(null);
         setChallengeStep(1); // Start directly with Step 1
@@ -91,7 +105,7 @@ const FaceCapture = () => {
 
             // Re-use search endpoint to get attributes
             // Note: We ignore the match result here, we only care about attributes
-            const response = await axios.post(`${API_URL}/search`, formData);
+            const response = await axios.post(`${API_URL}/search`, formData, await authConfig());
             const face = response.data.detectedFace;
 
             if (!face) {
@@ -173,7 +187,7 @@ const FaceCapture = () => {
                 const formData = new FormData();
                 formData.append('image', file);
 
-                const response = await axios.post(`${API_URL}/search`, formData);
+                const response = await axios.post(`${API_URL}/search`, formData, await authConfig());
                 setResult(response.data);
             } catch (error) {
                 console.error("ID error", error);
@@ -200,7 +214,7 @@ const FaceCapture = () => {
                 detectionId: result.detectedFace.id,
                 name: enrollName,
                 imageUrl: result.imageUrl
-            });
+            }, await authConfig());
             alert('Person enrolled successfully!');
             setResult(prev => ({
                 ...prev,
@@ -216,7 +230,7 @@ const FaceCapture = () => {
     };
 
     const openDoorManual = async () => {
-        try { await axios.post(`${API_URL}/door/open`); alert('Door command sent!'); }
+        try { await axios.post(`${API_URL}/door/open`, {}, await authConfig()); alert('Door command sent!'); }
         catch (e) { alert(e.message); }
     };
 

@@ -1,12 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const axios = require('axios');
 const { uploadFile } = require('../services/storage.service');
 const { logAccess } = require('../services/db.service');
 const { detectFaces, searchFaces, verifyFaces, createFace } = require('../services/ntech.service');
 const mqttService = require('../services/mqtt.service');
+const requireAuth = require('../middleware/auth');
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+// All API routes require an authenticated Supabase session (Bearer token).
+router.use(requireAuth);
 
 // ... (existing code)
 
