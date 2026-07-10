@@ -29,8 +29,11 @@ RUN npm install --only=production && npm cache clean --force
 # If we had a build step, we would copy dist/build folder from builder stage.
 COPY src ./src
 
-# Create a non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Create a non-root user for security and make the uploads dir writable by it.
+# A named volume (see docker-compose.yml) inherits this ownership on creation,
+# so the non-root process can write access photos to /app/uploads.
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && mkdir -p /app/uploads && chown -R appuser:appgroup /app/uploads
 USER appuser
 
 EXPOSE 4000
