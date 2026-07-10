@@ -1,7 +1,14 @@
 const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+// Sanitize the client id: a stray protocol prefix, quotes or whitespace in the
+// env var makes verifyIdToken's audience check fail (401 "Invalid Google
+// credential"), because the token's `aud` is the bare client id.
+const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '');
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '12h';
 
