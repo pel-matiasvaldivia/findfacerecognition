@@ -2,7 +2,14 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
 
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+// Sanitize the client id: a stray protocol prefix, surrounding quotes or
+// whitespace baked in from the build variable makes Google reject it with
+// "invalid_client / OAuth client was not found".
+const GOOGLE_CLIENT_ID = (process.env.REACT_APP_GOOGLE_CLIENT_ID || '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '');
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
 const TOKEN_KEY = 'ff_token';
