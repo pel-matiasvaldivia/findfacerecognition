@@ -39,7 +39,9 @@ services:
       - mqtt
       - postgres
     volumes:
-      - ./backend/uploads:/app/uploads
+      # Named volume so it inherits the image's uploads dir ownership (appuser),
+      # letting the non-root backend write access photos without host chmod.
+      - uploads:/app/uploads
     networks:
       - app-network
 
@@ -83,6 +85,7 @@ services:
 
 volumes:
   pgdata:
+  uploads:
 
 networks:
   app-network:
